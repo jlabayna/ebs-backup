@@ -6,10 +6,17 @@ ebs-backup \- backup up files onto an AWS EBS volume
 .SH SYNOPSIS
 
 .B ebs-backup
+.I keyname
 .IR file ...
 
 .SH DESCRIPTION
 .B ebs-backup
-
-.SS Backup
+uses the AWS key pair
+.I keyname
+to backup each
+.I file
+to to EBS. If the user has not created an AWS key pair, then the user must
+create an AWS key pair (see
+.UR https://\:docs.aws.amazon.com/\:AWSEC2/\:latest/\:UserGuide/\:ec2-key-pairs.html
+.UE ).
 
