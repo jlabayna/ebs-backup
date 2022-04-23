@@ -1,0 +1,15 @@
+.TH ebs-backup 1 2022-04-22 1.0.0-alpha.1
+
+.SH NAME
+ebs-backup \- backup up files onto an AWS EBS volume
+
+.SH SYNOPSIS
+
+.B ebs-backup
+.IR file ...
+
+.SH DESCRIPTION
+.B ebs-backup
+
+.SS Backup
+
