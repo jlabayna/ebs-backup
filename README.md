@@ -11,7 +11,7 @@
   - [ ] Restore files from a hard-coded directory
 - [ ] Configuration
 - [ ] AWS (simple):
-  - [ ] Start an identifiable AWS EC2 instance (for use with EBS)
+  - [X] Start an identifiable AWS EC2 instance (for use with EBS)
   - [ ] Close specific AWS EC2 instance
 - [ ] EBS Management:
   - [ ] Create volumes if they don't exist
