@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# Set program name now in case params shift or something
+program="$0"
+
 # Rationale for functions in here rather than a
 # separate file:
 # - User can just put this script anywhere
@@ -15,6 +18,11 @@ alias error='echo >&2'
 
 fail() {
   error "$*"
+  exit 1
+}
+
+usage() {
+  echo "usage: $program keyname zone file..."
   exit 1
 }
 
@@ -64,7 +72,7 @@ fi
 #TODO: Assume default region is in config if not specified
 
 if [ $# -ne 2 ]; then
-  fail "Bad number of parameters"
+  usage
 fi
 
 key="$1"
@@ -197,7 +205,7 @@ if ! ssh-tmp "ubuntu@$iname" exit; then
 fi
 echo "Connection succeeded!"
 
-
+fail "Now, figure out ssh commands"
 
 ###
 # Terminate instnace
