@@ -34,7 +34,7 @@ key=""
 alias ssh-tmp='ssh \
   -o StrictHostKeyChecking=no \
   -o UserKnownHostsFile=/dev/null \
-  -o ConnectTimeout=5'
+  -o ConnectTimeout=10'
 
 
 ###
@@ -159,7 +159,7 @@ aws ec2 wait instance-running --instance-ids "$instance"
 
 # SSH may take time to setup, so wait 60 seconds.
 # TODO: Set back to 60 seconds before release
-secs=3
+secs=5
 while [ $secs -ge 0 ]; do
   # Erase previous line and move cursor to beginning of current line
   printf "Seconds til SSH is likely active: %d\033[0K\r" "$secs"
@@ -185,9 +185,10 @@ fi
 echo "Connection succeeded!"
 
 
-# TODO: Track availability zone, else drives won't attach
 
+###
+# Terminate instnace
+###
 
-# TODO: Let user specify availaility zone
-
-
+echo "Terminating instance..."
+aws ec2 terminate-instances --instance-ids "$instance"
