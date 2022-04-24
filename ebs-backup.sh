@@ -7,19 +7,16 @@
 #   that need to be anywhere specific)
 
 
-
 ###
 # Error Handling
 ###
 
-alias error='echo 1>&2'
+alias error='echo >&2'
 
 fail() {
   error "$1"
   exit 1
 }
-
-
 
 ###
 # AWS Instance Handling
@@ -32,6 +29,12 @@ fail() {
 # blank.
 key=""
 
+
+# SSH without host key checking or saving the new host
+alias ssh-tmp='ssh \
+  -o StrictHostKeyChecking=no \
+  -o UserKnownHostsFile=/dev/null \
+  -o ConnectTimeout=5'
 
 
 ###
@@ -54,17 +57,44 @@ fi
 
 # TODO: Maybe add a check for aws, even if that's assumed to be installed?
 
-
-
 ###
 # Check for parameters
 ###
+
+#TODO: Assume default region is in config if not specified
 
 if [ $# -ne 1 ]; then
   fail "Bad number of parameters"
 fi
 
 key="$1"
+
+###
+# Check if backup volume(s) exist(s)
+###
+
+ebs_vols=aws ec2 describe-tags \
+  --filters Name=key,Values=ebs_backup_vol \
+  | jq -r '.Tags[].ResourceId'
+
+if [ -z "$ebs_vols" ]; then
+  echo "Backup volume(s) not detected!"
+  printf "Do you want to create a new volume [default: n]? [y/n]: "
+  read -r ans
+  ans=${ans:-n}
+  if [ "$ans" != "y" ]; then
+    error "No backup volume available."
+    fail "See \`man 1 ebs-backup\`"
+  fi
+  
+
+#  aws ec2 create-volume \
+#    --availability-zone us-east-1a \
+#    --size 1 \
+#    --volume-type gp3 \
+#    --tag-specifications 'ResourceType=volume,Tags=[{Key=ebs-backup-vol,Value=true}]'
+fi
+
 
 ###
 # Start an ephemeral ec2 instance
@@ -79,13 +109,17 @@ key="$1"
 # not specify a key-pair for the run-instnaces
 # command.
 echo "Starting a temporary EC2 instance..."
-subnet=$(aws ec2 describe-subnets | jq -r '.Subnets[] | select( .Tags[]? | select(.Value == "dualstack")).SubnetId')
-sg=$(aws ec2 describe-security-groups | jq -r '.SecurityGroups [] | select( .GroupName == "dualstack").GroupId')
-if ! startup_json=$(aws ec2 run-instances --key-name "$key" --image-id ami-08b4ee602f76bff79 \
+subnet=$(aws ec2 describe-subnets \
+  | jq -r '.Subnets[] | select( .Tags[]? | select(.Value == "dualstack")).SubnetId')
+sg=$(aws ec2 describe-security-groups \
+  | jq -r '.SecurityGroups [] | select( .GroupName == "dualstack").GroupId')
+# Login with user "ubuntu" 
+# Switch to an ami with a smaller ebs volume later.
+if ! startup_json=$(aws ec2 run-instances --key-name "$key" \
+  --image-id ami-0f593aebffc0070e1 \
   --instance-type t2.micro  \
   --subnet-id "${subnet}"   \
-  --security-group-ids "${sg}")
-then
+  --security-group-ids "${sg}"); then
   fail "Failed to create instnace!"
 fi
 
@@ -93,22 +127,43 @@ fi
 instance=$(jq -nr --argjson data "$startup_json" '$data.Instances[].InstanceId')
 
 # Wait for ec2 instance to come up
-echo "Waiting for EC2 instance \"$instance\" to start running"
+echo "Waiting for EC2 instance \"$instance\" to start running..."
 aws ec2 wait instance-running --instance-ids "$instance"
 
 # SSH may take time to setup, so wait 60 seconds.
-secs=60
-while [ $secs -gt 0 ]; do
+# TODO: Set back to 60 seconds before release
+secs=3
+while [ $secs -ge 0 ]; do
   # Erase previous line and move cursor to beginning of current line
-  printf "Seconds til SSH is probably active: %d\033[0K\r" "$secs"
+  printf "Seconds til SSH is likely active: %d\033[0K\r" "$secs"
   sleep 1
   secs=$((secs-1))
 done
 
-echo "SSH should be active. Continuing script..."
+# Newline, since timer reset cursor position to start of line with text
+echo ""
+echo "Testing SSH..."
 
 # Instance public dns name
-iname=$(aws ec2 describe-instances --instance-ids "$instance" | \
-  jq -r ".Reservations[].Instances[].PublicDnsName")
+iname=$(aws ec2 describe-instances --instance-ids "$instance" \
+  | jq -r ".Reservations[].Instances[].PublicDnsName")
 
-echo "$iname"
+
+# Test ssh connection
+# TODO: Handle connection failure
+if ! ssh-tmp "ubuntu@$iname" exit; then
+# TODO: Kill instnaces when ssh fails, or retry before finally killing
+  fail "SSH connection took too long."
+fi
+
+echo "Connection succeeded!"
+echo "Checking for volume..."
+
+
+# TODO: Track availability zone, else drives won't attach
+
+
+# TODO: Let user specify availaility zone
+
+
+#
