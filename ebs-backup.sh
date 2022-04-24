@@ -91,16 +91,16 @@ fi
 
 echo "Checking for backup volume(s)..."
 
-ebs_vols=$(aws ec2 describe-volumes \
+ebs_vol=$(aws ec2 describe-volumes \
   | jq -r \
     --arg zone "$zone" \
     '.Volumes[]
     | select(.AvailabilityZone == $zone and .Tags[].Key == "ebs_backup_vol")
     | .VolumeId')
 
-if [ -z "$ebs_vols" ]; then
+if [ -z "$ebs_vol" ]; then
   echo "Backup volume(s) not detected!"
-  printf "Do you want to create a new volume [default: n]? [y/n]: "
+  printf "Do you want to create a new volume? [default: n] [y/n]: "
   read -r ans
   ans=${ans:-n}
   if [ "$ans" != "y" ]; then
@@ -109,17 +109,18 @@ if [ -z "$ebs_vols" ]; then
   fi
   
 
-  # TODO: SAFETY MEASURE.
-  # Remove this fail when ready to test volume creation
-#  fail "Stopping before creating volume"
-#
-#  if ! aws ec2 create-volume \
-#    --availability-zone $something \
-#    --size 1 \
-#    --volume-type gp3 \
-#    --tag-specifications 'ResourceType=volume,Tags=[{Key=ebs_backup_vol,Value=true}]'; then
-#    fail "Volume creation failed."
-#  fi
+  printf "What size volume do you want (in GiB)? [default: 1] [1-16384]: "
+  read -r size
+  size=${size:-1}
+  if ! ebs_vol=$(aws ec2 create-volume \
+    --availability-zone "$zone" \
+    --size "$size" \
+    --volume-type gp3 \
+    --tag-specifications 'ResourceType=volume,Tags=[{Key=ebs_backup_vol,Value="1"}]' \
+    | jq -r '.VolumeId'); then
+    fail "Volume creation failed."
+  fi
+  
 fi
 
 ###
@@ -156,6 +157,18 @@ instance=$(jq -nr --argjson data "$startup_json" '$data.Instances[].InstanceId')
 # Wait for ec2 instance to come up
 echo "Waiting for EC2 instance \"$instance\" to start running..."
 aws ec2 wait instance-running --instance-ids "$instance"
+
+
+###
+# Attach volume to ec2 instance
+###
+
+if ! aws ec2 attach-volume \
+  --device "/dev/xvdf" \
+  --instance-id "$instance" \
+  --volume-id "$ebs_vol" >/dev/null 2>&1; then
+  fail "Failed to attach volume."
+fi
 
 # SSH may take time to setup, so wait 60 seconds.
 # TODO: Set back to 60 seconds before release
