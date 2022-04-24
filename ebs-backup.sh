@@ -2,6 +2,9 @@
 
 # Set program name now in case params shift or something
 program="$0"
+key="$1"
+zone="$2"
+
 
 # Rationale for functions in here rather than a
 # separate file:
@@ -30,20 +33,23 @@ usage() {
 # AWS Instance Handling
 ###
 
-# Aws key-pair name for ssh.
-# Set to "" by deafult in case aws commands that
-# need an ssh-key-pair somehow run without a
-# specified key. Safe, since aws keys cannot be
-# blank.
-key=""
-
-
 # SSH without host key checking or saving the new host
 alias ssh-tmp='ssh \
   -o StrictHostKeyChecking=no \
   -o UserKnownHostsFile=/dev/null \
   -o ConnectTimeout=10'
 
+# Commands to issue over ssh (mainly mkfs and disk mounting.
+# error() not defined on instance.
+ssh_commands='echo "Making mountpoint..."
+if ! mkdir mnt; then
+  echo "Failed to make mountpoint" >&2
+  exit 2
+fi
+if ! sudo mount /dev/xvdf mnt; then
+  echo "Failed to mount backup volume"
+  exit 3
+fi'
 
 ###
 # Check if necessary commands exist
@@ -75,8 +81,6 @@ if [ $# -ne 2 ]; then
   usage
 fi
 
-key="$1"
-zone="$2"
 
 ###
 # Check availability zone
@@ -128,7 +132,8 @@ if [ -z "$ebs_vol" ]; then
     | jq -r '.VolumeId'); then
     fail "Volume creation failed."
   fi
-  
+
+  ssh_commands="sudo mkfs.btrfs /dev/xvdf; $ssh_commands"
 fi
 
 ###
@@ -205,11 +210,15 @@ if ! ssh-tmp "ubuntu@$iname" exit; then
 fi
 echo "Connection succeeded!"
 
-fail "Now, figure out ssh commands"
 
+# Make filesystem if necessary
+
+ssh-tmp "ubuntu@$iname" "$ssh_commands"
+
+
+fail "breakpoint!"
 ###
 # Terminate instnace
 ###
-
 echo "Terminating instance..."
 aws ec2 terminate-instances --instance-ids "$instance"
