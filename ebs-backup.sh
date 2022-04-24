@@ -14,7 +14,7 @@
 alias error='echo >&2'
 
 fail() {
-  error "$1"
+  error "$*"
   exit 1
 }
 
@@ -63,19 +63,40 @@ fi
 
 #TODO: Assume default region is in config if not specified
 
-if [ $# -ne 1 ]; then
+if [ $# -ne 2 ]; then
   fail "Bad number of parameters"
 fi
 
 key="$1"
+zone="$2"
+
+###
+# Check availability zone
+###
+
+# List of available zones
+zone_info=$(aws ec2 describe-availability-zones \
+  | jq -r '.AvailabilityZones[] | select(.State == "available") | .ZoneName')
+
+# printf for portability in unforeseen cases
+if ! printf "%s" "$zone_info" | grep -qFx "$zone"; then
+  error "Given zone not available."
+  error "Available zones:"
+  fail "$zone_info"
+fi
 
 ###
 # Check if backup volume(s) exist(s)
 ###
 
-ebs_vols=aws ec2 describe-tags \
-  --filters Name=key,Values=ebs_backup_vol \
-  | jq -r '.Tags[].ResourceId'
+echo "Checking for backup volume(s)..."
+
+ebs_vols=$(aws ec2 describe-volumes \
+  | jq -r \
+    --arg zone "$zone" \
+    '.Volumes[]
+    | select(.AvailabilityZone == $zone and .Tags[].Key == "ebs_backup_vol")
+    | .VolumeId')
 
 if [ -z "$ebs_vols" ]; then
   echo "Backup volume(s) not detected!"
@@ -88,13 +109,18 @@ if [ -z "$ebs_vols" ]; then
   fi
   
 
-#  aws ec2 create-volume \
-#    --availability-zone us-east-1a \
+  # TODO: SAFETY MEASURE.
+  # Remove this fail when ready to test volume creation
+#  fail "Stopping before creating volume"
+#
+#  if ! aws ec2 create-volume \
+#    --availability-zone $something \
 #    --size 1 \
 #    --volume-type gp3 \
-#    --tag-specifications 'ResourceType=volume,Tags=[{Key=ebs-backup-vol,Value=true}]'
+#    --tag-specifications 'ResourceType=volume,Tags=[{Key=ebs_backup_vol,Value=true}]'; then
+#    fail "Volume creation failed."
+#  fi
 fi
-
 
 ###
 # Start an ephemeral ec2 instance
@@ -116,6 +142,7 @@ sg=$(aws ec2 describe-security-groups \
 # Login with user "ubuntu" 
 # Switch to an ami with a smaller ebs volume later.
 if ! startup_json=$(aws ec2 run-instances --key-name "$key" \
+  --placement AvailabilityZone="$zone" \
   --image-id ami-0f593aebffc0070e1 \
   --instance-type t2.micro  \
   --subnet-id "${subnet}"   \
@@ -155,9 +182,7 @@ if ! ssh-tmp "ubuntu@$iname" exit; then
 # TODO: Kill instnaces when ssh fails, or retry before finally killing
   fail "SSH connection took too long."
 fi
-
 echo "Connection succeeded!"
-echo "Checking for volume..."
 
 
 # TODO: Track availability zone, else drives won't attach
@@ -166,4 +191,3 @@ echo "Checking for volume..."
 # TODO: Let user specify availaility zone
 
 
-#

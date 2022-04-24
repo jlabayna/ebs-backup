@@ -7,6 +7,7 @@ ebs-backup \- backup up files onto an AWS EBS volume
 
 .B ebs-backup
 .I keyname
+.I zone
 .IR file ...
 
 .SH DESCRIPTION
@@ -15,8 +16,20 @@ uses the AWS key pair
 .I keyname
 to backup each
 .I file
-to to EBS. If the user has not created an AWS key pair, then the user must
+to an EBS volume in the availability zone named
+.IR zone .
+
+If the user has not created an AWS key pair, then the user must
 create an AWS key pair (see
 .UR https://\:docs.aws.amazon.com/\:AWSEC2/\:latest/\:UserGuide/\:ec2-key-pairs.html
 .UE ).
 
+Backup volumes are EBS volumes tagged with the Key "ebs-backup-vol" and Value "1". If no EBS volumes have this key,value pair, then the user will be prompted to create such a volume.
+.B ebs-backup
+will not perform backup or restoration unless a backup volume exists.
+
+The provided
+.I zone
+must be the same as existing backup volumes, otherwise,
+.B ebs-backup
+cannot use the existing backup volumes and will run as if those volumes do not exist.
