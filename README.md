@@ -6,20 +6,20 @@
 - [ ] Documentation:
   - [ ] `rsync(1)` installation
   - [ ] `jq(1)` installation
-- [ ] Rsync familiarity:
-  - [ ] Backup files to a hard-coded directory
+- [o] Rsync familiarity:
+  - [X] Backup files to a hard-coded directory
   - [ ] Restore files from a hard-coded directory
 - [X] Configuration
   - [X] Specify region somehow
-- [o] EC2:
+- [X] EC2:
   - [X] Start an identifiable AWS EC2 instance (for use with EBS)
   - [X] Attach EBS volume(s)
-  - [ ] Mount EBS volume(s)
-  - [ ] Close specific AWS EC2 instance
-- [o] EBS Management:
+  - [X] Mount EBS volume(s)
+  - [X] Close specific AWS EC2 instance
+- [X] EBS Management:
   - [X] Create volumes if they don't exist
   - [X] Find created volumes
-  - [ ] Format volume if not-yet-formatted
+  - [X] Format volume if not-yet-formatted
 - [ ] Edge cases:
   - [ ] Out of inodes
   - [ ] Backup is too big

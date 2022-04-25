@@ -5,7 +5,6 @@ program="$0"
 key="$1"
 zone="$2"
 
-
 # Rationale for functions in here rather than a
 # separate file:
 # - User can just put this script anywhere
@@ -46,10 +45,18 @@ if ! mkdir mnt; then
   echo "Failed to make mountpoint" >&2
   exit 2
 fi
+sudo chown ubuntu:ubuntu mnt
 if ! sudo mount /dev/xvdf mnt; then
   echo "Failed to mount backup volume"
   exit 3
-fi'
+fi
+if [ ! -e mnt/backup.0 ]; then
+  mkdir mnt/backup.0
+fi
+rm -rf mnt/backup.1
+mv mnt/backup.0 mnt/backup.1
+'
+
 
 ###
 # Check if necessary commands exist
@@ -77,9 +84,15 @@ fi
 
 #TODO: Assume default region is in config if not specified
 
-if [ $# -ne 2 ]; then
+if [ $# -le 2 ]; then
   usage
 fi
+
+shift 2
+files=$(for file in "$@"; do
+  printf "%s" "$(realpath "$file")"
+  echo ""
+done)
 
 
 ###
@@ -185,7 +198,7 @@ fi
 
 # SSH may take time to setup, so wait 60 seconds.
 # TODO: Set back to 60 seconds before release
-secs=5
+secs=10
 while [ $secs -ge 0 ]; do
   # Erase previous line and move cursor to beginning of current line
   printf "Seconds til SSH is likely active: %d\033[0K\r" "$secs"
@@ -211,12 +224,24 @@ fi
 echo "Connection succeeded!"
 
 
-# Make filesystem if necessary
-
+# Make (if necessary) and mount filesystem
 ssh-tmp "ubuntu@$iname" "$ssh_commands"
 
+###
+# Copy files to backup
+###
 
-fail "breakpoint!"
+# -a: Archive mode ensures symbolic links, attributes,
+#     perms, etc. are preserved.
+# -v: Verbose
+rsync -avR --progress --delete \
+  -e 'ssh -o StrictHostKeyChecking=no
+          -o UserKnownHostsFile=/dev/null
+          -o ConnectTimeout=10' \
+  --link-dest=../backup.1 \
+  "$files" \
+  "ubuntu@$iname:/home/ubuntu/mnt/backup.0"
+
 ###
 # Terminate instnace
 ###
