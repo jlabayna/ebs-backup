@@ -212,9 +212,8 @@ if ! aws ec2 attach-volume \
   exit 1
 fi
 
-# SSH may take time to setup, so wait 60 seconds.
-# TODO: Set back to 60 seconds before release
-secs=10
+# SSH may take time to setup, so wait 20 seconds.
+secs=20
 while [ $secs -ge 0 ]; do
   # Erase previous line and move cursor to beginning of current line
   printf "Seconds til SSH is likely active: %d\033[0K\r" "$secs"
@@ -232,10 +231,10 @@ iname=$(aws ec2 describe-instances --instance-ids "$instance" \
 
 
 # Test ssh connection
-# TODO: Handle connection failure
 if ! ssh-tmp "ubuntu@$iname" exit; then
-# TODO: Kill instnaces when ssh fails, or retry before finally killing
-  fail "SSH connection took too long."
+  error "SSH connection took too long."
+  terminate
+  exit 1
 fi
 echo "Connection succeeded!"
 
