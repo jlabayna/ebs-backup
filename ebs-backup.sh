@@ -37,7 +37,7 @@ usage() {
 alias ssh-tmp='ssh -q \
   -o StrictHostKeyChecking=no \
   -o UserKnownHostsFile=/dev/null \
-  -o ConnectTimeout=10'
+  -o ConnectTimeout=15'
 
 # Commands to issue over ssh (mainly mkfs and disk mounting.
 # error() not defined on instance.
@@ -58,13 +58,13 @@ terminate() {
     --instance-ids "$instance" >/dev/null
 }
 
-# r instead of a due to errors with home directory perms
-# can't change times
+# "r" instead of "a" option due to errors with home directory perms:
+# Can't change times
 restore() {
   rsync -crvzP \
     -e 'ssh -q -o StrictHostKeyChecking=no
       -o UserKnownHostsFile=/dev/null
-      -o ConnectTimeout=10' \
+      -o ConnectTimeout=15' \
     "ubuntu@$iname:/home/ubuntu/mnt/backup.0/" /
   terminate
   exit 0
@@ -74,9 +74,6 @@ restore() {
 # Check if necessary commands exist
 ###
 
-# Check if rsync is installed as a safety measure in case of incorrect
-# installation.
-# TODO: Remove me if non-exitance of rsync won't cause issue.
 if ! command -v rsync >/dev/null; then
   error "Please install rsync(1)"
   exit 1
@@ -98,7 +95,7 @@ fi
 # Rationale for forcing user to give zone name:
 # - User zone *may* change between backups
 
-# If backing up, expect params b, keyname, zone and file...
+# If backing up, expect params b, keyname, zone and file:
 if [ "$mode" = "b" ] && [ $# -ge 4 ]; then
   shift 3
 # If restoring, expect params r, keyname, zone:
@@ -198,7 +195,6 @@ instance=$(jq -nr --argjson data "$startup_json" '$data.Instances[].InstanceId')
 echo "Waiting for EC2 instance \"$instance\" to start running..."
 aws ec2 wait instance-running --instance-ids "$instance"
 
-
 ###
 # Attach volume to ec2 instance
 ###
@@ -212,8 +208,8 @@ if ! aws ec2 attach-volume \
   exit 1
 fi
 
-# SSH may take time to setup, so wait 20 seconds.
-secs=20
+# SSH may take time to setup, so wait 30 seconds.
+secs=30
 while [ $secs -ge 0 ]; do
   # Erase previous line and move cursor to beginning of current line
   printf "Seconds til SSH is likely active: %d\033[0K\r" "$secs"
@@ -268,12 +264,10 @@ echo "<--- Data transfer calculations --->"
 # - 2^64 files
 # Note the 4096 blocksize
 
-
 files=$(for file in "$@"; do
   printf "%s" "$(realpath "$file")"
   echo ""
 done)
-
 
 available=$(ssh-tmp "ubuntu@$iname" stat -f -c"%a" mnt)
 files_used=$(ssh-tmp "ubuntu@$iname" "du -a mnt | wc -l")
@@ -298,8 +292,7 @@ if [ "$(echo "18446744073709551616 - $num_files - $files_used" | bc)" = "0" ]; t
   exit 1
 fi
 
-
-echo "<------>"
+echo "<---------------------------------->"
 
 ###
 # Copy files to backup

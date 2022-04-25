@@ -46,9 +46,9 @@ The user CANNOT backup more than 16 TiB of data.
 .IR file ...
 
 .RS 4
-Will backup the given
-.I file
-(s) with the given AWS keypair 
+Will backup
+.IR file (s)
+using the AWS keypair 
 .I keyname
 and availability zone
 .IR zone .
@@ -69,7 +69,7 @@ create an AWS key pair (see
 .UR https://\:docs.aws.amazon.com/\:AWSEC2/\:latest/\:UserGuide/\:ec2-key-pairs.html
 .UE ).
 
-Backup volumes are EBS volumes tagged with the Key "ebs-backup-vol" and Value
+Backup volumes are EBS volumes tagged with the Key "ebs_backup_vol" and Value
 "1". If no EBS volumes have this key,value pair, then the user will be prompted
 to create such a volume.
 .B ebs-backup
@@ -86,6 +86,15 @@ Backups are located in a btrfs filesystem under "backup.n/". The smaller n is,
 the more recent the backup (with n=0 indicating that the backup is the latest
 backup).
 
+.SS Rsync failures
+
+If rsync fails, the script will usually just continue execution, terminating the
+AWS EC2 instance used. Therefore, it is possible that that the latest backup
+will be incomplete. When theis occurs, there is no way to prevent overwriting
+backup.1 when
+.B ebs-backup b...
+runs again.
+
 .SS Manual restoration
 
 In the event of unforeseen cirumstances or if you need to restore a backup
@@ -94,16 +103,17 @@ earlier than the latest one, then you might need to perform manual restoration.
 The paths of files relative to root (/) on the local system (where
 .B ebs-backup
 runs) are the same as the backed up files' paths relative to their respective
-backup directory. Therefore, to restore the nth backup (starting at n=0), run:
+backup directory. Therefore, to restore the nth backup (starting at n=0), find
+and attach the EBS volume tagged "ebs_backup_vol" to an EC2 instance and run:
 
 .RS 4
 $
-.B scp -r user@remote:mnt/backup.n/* /
+.B scp -r
+.BI ubuntu@ remote :mnt/backup.n/* 
+/
 .RE 
 
-where user is the user on an AWS EC2 instance on which the backup volume is
-attached, remote is the public dns name of the EC2 instance in-use, and mnt is
-the mount point of the backup volume.
+where remote is the public dns name of the EC2 instance in use.
 
 .SH FILES
 .I /usr/bin/ebs-backup
