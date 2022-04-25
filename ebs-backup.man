@@ -102,3 +102,14 @@ $
 where user is the user on an AWS EC2 instance on which the backup volume is
 attached, remote is the public dns name of the EC2 instance in-use, and mnt is
 the mount point of the backup volume.
+
+.SH FILES
+.I /usr/bin/ebs-backup
+.RS 4
+Primary script
+.RE
+
+.I /usr/share/man/man1/ebs-backup.1.gz
+.RS 4
+Man pages
+.RE

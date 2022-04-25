@@ -64,3 +64,5 @@
     - Follow the official download instructions [here](https://stedolan.github.io/jq/download/)
     - Make sure that `jq` is visible via the `$PATH`
 3. `ebs-backup` can (probably) run in any directory, but it is probably most convenient to copy it to a directory listed in your `$PATH` variable.
+
+   If you want to more permanently install `ebs-backup(1)`, then run `install.sh` (from the tar archive that contained `ebs-backup(1)`) as root.
