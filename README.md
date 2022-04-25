@@ -64,3 +64,12 @@ AWS and restores them if need be.
          /usr/bin/ebs-backup` as `root`, and disregard further steps.
    2. Run `install.sh` (from the tar archive that contained `ebs-backup(1)`) as
       root.
+
+## Usage
+
+See the included `man(1)` pages. Either:
+- Run:
+  - `$ man ./ebs-backup.man`
+- Or, after installing `ebs-backup` via `install.sh`:
+  - `$ man ebs-backup`
+
