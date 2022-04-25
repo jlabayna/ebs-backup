@@ -32,6 +32,12 @@ least one
 .I file
 available for backup before initial setup.
 
+In any mode of operation (backup/restore),  if the user is not using an SSH
+agent to cache their password, then the user must be present during the entire
+runtime of the script to enter their SSH password. For more convenient use,
+please use an SSH agent (see
+.BR ssh-agent (1)).
+
 .SS Limitations
 The user CANNOT backup data with a total size (in 4096-byte-blocks) bigger than
 the backup volume size (in bytes) that the user specified when they first ran
