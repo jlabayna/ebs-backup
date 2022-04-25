@@ -33,7 +33,7 @@ usage() {
 ###
 
 # SSH without host key checking or saving the new host
-alias ssh-tmp='ssh \
+alias ssh-tmp='ssh -q \
   -o StrictHostKeyChecking=no \
   -o UserKnownHostsFile=/dev/null \
   -o ConnectTimeout=10'
@@ -57,6 +57,11 @@ rm -rf mnt/backup.1
 mv mnt/backup.0 mnt/backup.1
 '
 
+terminate() {
+  echo "Terminating instance..."
+  aws ec2 terminate-instances \
+    --instance-ids "$instance" >/dev/null
+}
 
 ###
 # Check if necessary commands exist
@@ -224,8 +229,46 @@ fi
 echo "Connection succeeded!"
 
 
-# Make (if necessary) and mount filesystem
 ssh-tmp "ubuntu@$iname" "$ssh_commands"
+
+###
+# Making sure that backup can occur
+###
+
+echo "<--- Data transfer calculations --->"
+
+# Compare filesize and file count with limits.
+# Btrfs limits:
+# - 2^64 files
+# Note the 4096 blocksize
+
+
+
+available=$(ssh-tmp "ubuntu@$iname" stat -f -c"%a" mnt)
+files_used=$(ssh-tmp "ubuntu@$iname" "du -a mnt | wc -l")
+
+du_out=$(du -caB 4096 "$files")
+needed=$(printf "%s" "$du_out" | awk 'END{print $1}')
+
+num_files=$(printf "%s" "$du_out" | head -n -1 | wc -l)
+files_left=$(echo "18446744073709551616 - $num_files - $files_used" | bc)
+
+printf "Needed blocks: %s\nAvailable blocks: %s\n" "$needed" "$available"
+if [ "$(echo "$available - $needed > 0" | bc)" = "0" ]; then
+  error "Not enough free blocks on backup volume!"
+  terminate
+  exit 1
+fi
+
+printf "Files to copy: %s\nNumber of files allowed: %s\n" "$num_files" "$files_left"
+if [ "$(echo "18446744073709551616 - $num_files - $files_used" | bc)" = "0" ]; then
+  error "Too many files will be backed up."
+  terminate
+  exit 1
+fi
+
+
+echo "<------>"
 
 ###
 # Copy files to backup
@@ -235,7 +278,7 @@ ssh-tmp "ubuntu@$iname" "$ssh_commands"
 #     perms, etc. are preserved.
 # -v: Verbose
 rsync -avR --progress --delete \
-  -e 'ssh -o StrictHostKeyChecking=no
+  -e 'ssh -q -o StrictHostKeyChecking=no
           -o UserKnownHostsFile=/dev/null
           -o ConnectTimeout=10' \
   --link-dest=../backup.1 \
@@ -245,5 +288,5 @@ rsync -avR --progress --delete \
 ###
 # Terminate instnace
 ###
-echo "Terminating instance..."
-aws ec2 terminate-instances --instance-ids "$instance"
+
+terminate
