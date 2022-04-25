@@ -96,7 +96,7 @@ backup directory. Therefore, to restore the nth backup (starting at n=0), run:
 
 .RS 4
 $
-.B scp -r user@remote:mnt/backup.n /
+.B scp -r user@remote:mnt/backup.n/* /
 .RE 
 
 where user is the user on an AWS EC2 instance on which the backup volume is
