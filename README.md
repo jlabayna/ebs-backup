@@ -65,4 +65,8 @@
     - Make sure that `jq` is visible via the `$PATH`
 3. `ebs-backup` can (probably) run in any directory, but it is probably most convenient to copy it to a directory listed in your `$PATH` variable.
 
-   If you want to more permanently install `ebs-backup(1)`, then run `install.sh` (from the tar archive that contained `ebs-backup(1)`) as root.
+   If you want to more permanently install `ebs-backup(1)`, then:
+   1. First check if there is a different program called `ebs-backup`.
+      1. Run `whereis ebs-backup`. There should be no listed files after `ebs-backup:`. If there is a file `/usr/bin/ebs-backup`, then installation will fail. Disregard further installation instructions. You're on your own.
+      2. If `/usr/share/man/man1/ebs-backup.1.gz` appears after running `whereis ebs-backup`, then **DO NOT USE THE INSTALL SCRIPT**, or that man page will be overwritten. Instead, run `cp ebs-backup.sh /usr/bin/ebs-backup` as `root`, and disregard further steps.
+   2. Run `install.sh` (from the tar archive that contained `ebs-backup(1)`) as root.
