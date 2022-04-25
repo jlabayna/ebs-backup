@@ -1,7 +1,7 @@
 .TH ebs-backup 1 2022-04-25 2.0.0-alpha.1
 
 .SH NAME
-ebs-backup \- backup up files onto an AWS EBS volume
+ebs-backup \- backup and restoration based on AWS EBS
 
 .SH SYNOPSIS
 
@@ -18,10 +18,12 @@ ebs-backup \- backup up files onto an AWS EBS volume
 .B ebs-backup
 uses the AWS key pair
 .I keyname
-to backup or restore (depending on the mode set by the first paramter) each
+to backup each
 .I file
 to an EBS volume in the availability zone named
 .IR zone .
+.B ebs-backup
+can later restore each file using the same AWS key pair and availability zone.
 
 The user MUST run the script once in backup mode (
 .B ebs-backup b...

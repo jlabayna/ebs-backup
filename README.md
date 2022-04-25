@@ -1,7 +1,7 @@
 # ebs-backup
 
 `ebs-backup(1)` is a shell script that backups up files onto an EBS volume on
-AWS
+AWS and restores them if need be.
 
 ## Installation
 
