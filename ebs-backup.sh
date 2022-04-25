@@ -2,15 +2,15 @@
 
 # Set program name now in case params shift or something
 program="$0"
-key="$1"
-zone="$2"
+mode="$1"
+key="$2"
+zone="$3"
 
 # Rationale for functions in here rather than a
 # separate file:
 # - User can just put this script anywhere
 # - Minimize chance of breakage (no other files
 #   that need to be anywhere specific)
-
 
 ###
 # Error Handling
@@ -24,7 +24,8 @@ fail() {
 }
 
 usage() {
-  echo "usage: $program keyname zone file..."
+  echo "usage: $program b keyname zone file..."
+  echo "       $program r keyname zone"
   exit 1
 }
 
@@ -49,18 +50,24 @@ sudo chown ubuntu:ubuntu mnt
 if ! sudo mount /dev/xvdf mnt; then
   echo "Failed to mount backup volume"
   exit 3
-fi
-if [ ! -e mnt/backup.0 ]; then
-  mkdir mnt/backup.0
-fi
-rm -rf mnt/backup.1
-mv mnt/backup.0 mnt/backup.1
-'
+fi'
 
 terminate() {
   echo "Terminating instance..."
   aws ec2 terminate-instances \
     --instance-ids "$instance" >/dev/null
+}
+
+# r instead of a due to errors with home directory perms
+# can't change times
+restore() {
+  rsync -crvzP \
+    -e 'ssh -q -o StrictHostKeyChecking=no
+      -o UserKnownHostsFile=/dev/null
+      -o ConnectTimeout=10' \
+    "ubuntu@$iname:/home/ubuntu/mnt/backup.0/" /
+  terminate
+  exit 0
 }
 
 ###
@@ -87,18 +94,20 @@ fi
 # Check for parameters
 ###
 
-#TODO: Assume default region is in config if not specified
+# TODO: Assume default region is in config if not specified
+# Rationale for forcing user to give zone name:
+# - User zone *may* change between backups
 
-if [ $# -le 2 ]; then
+# If backing up, expect params b, keyname, zone and file...
+if [ "$mode" = "b" ] && [ $# -ge 4 ]; then
+  shift 3
+# If restoring, expect params r, keyname, zone:
+elif [ "$mode" = "r" ] && [ $# = 3 ]; then
+  :
+else
   usage
+  exit 1
 fi
-
-shift 2
-files=$(for file in "$@"; do
-  printf "%s" "$(realpath "$file")"
-  echo ""
-done)
-
 
 ###
 # Check availability zone
@@ -198,7 +207,9 @@ if ! aws ec2 attach-volume \
   --device "/dev/xvdf" \
   --instance-id "$instance" \
   --volume-id "$ebs_vol" >/dev/null 2>&1; then
-  fail "Failed to attach volume."
+  error "Failed to attach volume."
+  terminate
+  exit 1
 fi
 
 # SSH may take time to setup, so wait 60 seconds.
@@ -229,7 +240,23 @@ fi
 echo "Connection succeeded!"
 
 
+if [ "$mode" = "b" ]; then
+  ssh_commands="$ssh_commands; if [ ! -e mnt/backup.0 ]; then
+  mkdir mnt/backup.0
+  fi
+  rm -rf mnt/backup.1
+  mv mnt/backup.0 mnt/backup.1"
+fi
+
 ssh-tmp "ubuntu@$iname" "$ssh_commands"
+
+###
+# Restore if in restoration mode
+###
+
+if [ "$mode" = "r" ]; then
+  restore
+fi
 
 ###
 # Making sure that backup can occur
@@ -242,6 +269,11 @@ echo "<--- Data transfer calculations --->"
 # - 2^64 files
 # Note the 4096 blocksize
 
+
+files=$(for file in "$@"; do
+  printf "%s" "$(realpath "$file")"
+  echo ""
+done)
 
 
 available=$(ssh-tmp "ubuntu@$iname" stat -f -c"%a" mnt)
@@ -277,7 +309,7 @@ echo "<------>"
 # -a: Archive mode ensures symbolic links, attributes,
 #     perms, etc. are preserved.
 # -v: Verbose
-rsync -avR --progress --delete \
+rsync -avRP --delete \
   -e 'ssh -q -o StrictHostKeyChecking=no
           -o UserKnownHostsFile=/dev/null
           -o ConnectTimeout=10' \
@@ -290,3 +322,4 @@ rsync -avR --progress --delete \
 ###
 
 terminate
+exit 0
