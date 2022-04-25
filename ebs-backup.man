@@ -1,4 +1,4 @@
-.TH ebs-backup 1 2022-04-25 2.0.0-alpha.1
+.TH ebs-backup 1 2022-04-25 2.0.1-alpha.1
 
 .SH NAME
 ebs-backup \- backup and restoration based on AWS EBS
